@@ -28,8 +28,26 @@
     .label-text { font-size: 0.8rem; color: #7f8c8d; font-weight: bold; margin-bottom: 8px; display: block; }
     .amount { font-size: 40px; color: var(--dark); font-weight: 900; }
 
+    /* Speaker Button UI */
+    .speaker-btn {
+      background: none;
+      border: none;
+      font-size: 28px;
+      margin-left: 10px;
+      cursor: pointer;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 5px;
+      border-radius: 50%;
+      transition: background 0.2s;
+    }
+    .speaker-btn:active { background: #e0e0e0; }
+
     /* Amount & Spinner Layout */
     .amount-row { display: flex; align-items: center; justify-content: space-between; }
+    .amount-wrapper { display: flex; align-items: center; } /* Amount aur speaker ko ek sath rakhne ke liye */
     
     /* Chota Spinner (Right Side Ke Liye) */
     .mini-spinner { 
@@ -84,10 +102,15 @@
   <div class="card" style="border-left: 8px solid var(--primary);">
     <span class="label-text">IS MAHINE KA KHARCH</span>
     <div class="amount-row">
-      <div id="currTotal" class="amount">₹0</div>
+      <!-- Amount aur Speaker Button Yahan Hai -->
+      <div class="amount-wrapper">
+        <div id="currTotal" class="amount">₹0</div>
+        <button class="speaker-btn" onclick="speakAmount()" title="Amount Suno">🔊</button>
+      </div>
       <div id="currSpinner" class="mini-spinner"></div>
     </div>
   </div>
+  
   <div class="card">
     <span class="label-text">PICHHLA MAHINA</span>
     <div class="amount-row">
@@ -95,6 +118,7 @@
       <div id="prevSpinner" class="mini-spinner"></div>
     </div>
   </div>
+  
   <div class="card">
     <span class="label-text">AMOUNT DALEIN</span>
     <div class="input-row">
@@ -120,11 +144,8 @@
     const installBtn = document.getElementById('installBtn');
 
     window.addEventListener('beforeinstallprompt', (e) => {
-      // Chrome ka default prompt rokein
       e.preventDefault();
-      // Event save karein
       deferredPrompt = e;
-      // Button user ko dikhayein
       installBtn.style.display = 'block';
     });
 
@@ -134,17 +155,33 @@
         const { outcome } = await deferredPrompt.userChoice;
         if (outcome === 'accepted') {
           console.log('App install ho gayi');
-          installBtn.style.display = 'none'; // Install hone ke baad button chupa dein
+          installBtn.style.display = 'none'; 
         }
         deferredPrompt = null;
       }
     });
 
-    // Agar user ne already pehle se install kar rakha hai
     window.addEventListener('appinstalled', () => {
       installBtn.style.display = 'none';
     });
     // --- PWA INSTALLATION LOGIC END ---
+
+    // --- SPEAKER LOGIC START ---
+    function speakAmount() {
+      // Amount text nikal kar '₹' aur commas hata rahe hain
+      let amountStr = document.getElementById('currTotal').innerText.replace('₹', '').replace(/,/g, '').trim();
+      
+      if ('speechSynthesis' in window) {
+        // Speech API object banayein aur "rupaye" add karein
+        let speech = new SpeechSynthesisUtterance(amountStr + " रुपये");
+        speech.lang = 'hi-IN'; // Hindi language set kiya
+        speech.rate = 0.9; // Padhne ki speed thodi normal/clear rakhi
+        window.speechSynthesis.speak(speech);
+      } else {
+        alert("Aapka browser bolne wala feature support nahi karta hai.");
+      }
+    }
+    // --- SPEAKER LOGIC END ---
 
     async function updateUI() {
       document.getElementById('currSpinner').style.display = 'block';
