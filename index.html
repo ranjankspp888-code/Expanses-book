@@ -78,7 +78,8 @@
 
     async function updateUI() {
       try {
-        const res = await fetch(SCRIPT_URL);
+        // Cache-control header add kiya gaya hai taaki naya data aaye
+        const res = await fetch(SCRIPT_URL, { cache: "no-cache" });
         const data = await res.json();
         document.getElementById('currTotal').innerText = '₹' + data.current;
         document.getElementById('prevTotal').innerText = '₹' + data.prev;
@@ -86,6 +87,18 @@
         console.log("Data load karne me problem aayi", e);
       }
     }
+
+    // Website open hote hi refresh karega
+    window.onload = () => {
+      updateUI();
+    };
+
+    // Agar app minimize karke wapas open karein, tab bhi refresh karega
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === 'visible') {
+        updateUI();
+      }
+    });
 
     async function addExpense() {
       const amt = document.getElementById('amtInput').value;
@@ -124,8 +137,6 @@
         document.getElementById('popup').style.display = 'none';
       }
     }
-    
-    updateUI();
   </script>
 </body>
 </html>
