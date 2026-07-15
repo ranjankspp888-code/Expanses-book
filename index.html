@@ -8,6 +8,9 @@
     :root { --primary: #27ae60; --dark: #2c3e50; --light: #f4f4f9; }
     body { font-family: sans-serif; background: var(--light); padding: 15px; margin: 0; box-sizing: border-box; }
     
+    /* Splash Screen */
+    #splash { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--primary); display: flex; justify-content: center; align-items: center; z-index: 2000; color: white; font-size: 24px; font-weight: bold; }
+    
     /* Install Button UI */
     .install-btn {
       background: var(--dark);
@@ -20,7 +23,7 @@
       font-weight: bold;
       margin-bottom: 15px;
       cursor: pointer;
-      display: none; /* Jab tak browser allow na kare, hide rahega */
+      display: none; 
       box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
 
@@ -45,11 +48,9 @@
     }
     .speaker-btn:active { background: #e0e0e0; }
 
-    /* Amount & Spinner Layout */
     .amount-row { display: flex; align-items: center; justify-content: space-between; }
-    .amount-wrapper { display: flex; align-items: center; } /* Amount aur speaker ko ek sath rakhne ke liye */
+    .amount-wrapper { display: flex; align-items: center; } 
     
-    /* Chota Spinner (Right Side Ke Liye) */
     .mini-spinner { 
       width: 25px; 
       height: 25px; 
@@ -57,10 +58,9 @@
       border-top: 4px solid var(--primary); 
       border-radius: 50%; 
       animation: spin 1s linear infinite; 
-      display: none; /* Default hide rahega */
+      display: none; 
     }
 
-    /* Mobile Perfect Layout Fix */
     .input-row { display: flex; gap: 10px; align-items: center; width: 100%; box-sizing: border-box; }
     input { 
       flex: 1; 
@@ -86,26 +86,25 @@
       display: flex; align-items: center; justify-content: center;
     }
 
-    /* Popup Design */
     #popup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 1000; }
     .loader-box { background: white; padding: 40px; border-radius: 30px; text-align: center; position: relative; width: 150px; height: 150px; display: flex; justify-content: center; align-items: center; }
     .spinner-circle { position: absolute; width: 120px; height: 120px; border: 8px solid #f3f3f3; border-top: 8px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
-    .tick-icon { font-size: 60px; color: var(--primary); display: none; } /* Tick shuru mein hide rahega */
+    .tick-icon { font-size: 60px; color: var(--primary); display: none; } 
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 
-  <!-- Install Button Yahan Add Kiya Gaya Hai -->
+  <div id="splash">Expense Tracker...</div>
+
   <button id="installBtn" class="install-btn">📲 App Install Karein</button>
 
   <div class="card" style="border-left: 8px solid var(--primary);">
     <span class="label-text">IS MAHINE KA KHARCH</span>
     <div class="amount-row">
-      <!-- Amount aur Speaker Button Yahan Hai -->
       <div class="amount-wrapper">
         <div id="currTotal" class="amount">₹0</div>
-        <button class="speaker-btn" onclick="speakAmount()" title="Amount Suno">🔊</button>
+        <button class="speaker-btn" onclick="speakText(document.getElementById('currTotal').innerText.replace('₹', '') + ' रुपये')" title="Amount Suno">🔊</button>
       </div>
       <div id="currSpinner" class="mini-spinner"></div>
     </div>
@@ -122,7 +121,7 @@
   <div class="card">
     <span class="label-text">AMOUNT DALEIN</span>
     <div class="input-row">
-      <input type="number" id="amtInput" placeholder="0" pattern="\d*">
+      <input type="number" id="amtInput" placeholder="0" pattern="\d*" oninput="speakInput()">
       <button class="submit-btn" onclick="addExpense()">✓</button>
     </div>
   </div>
@@ -135,112 +134,100 @@
   </div>
 
   <script>
+    // Splash screen logic
+    setTimeout(() => { document.getElementById('splash').style.display = 'none'; }, 3000);
+
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
 
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwLFBvnydll-7DjNcTfoUzblswnm_lP68Dt9ewE9lP9LJ65JMn9h2XhkL3CWw9-SITc/exec"; 
 
-    // --- PWA INSTALLATION LOGIC START ---
-    let deferredPrompt;
-    const installBtn = document.getElementById('installBtn');
+    // --- INSAAN JAISI AAWAZ (NATURAL VOICE) LOGIC ---
+    let bestHindiVoice = null;
 
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      installBtn.style.display = 'block';
-    });
-
-    installBtn.addEventListener('click', async () => {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-          console.log('App install ho gayi');
-          installBtn.style.display = 'none'; 
-        }
-        deferredPrompt = null;
-      }
-    });
-
-    window.addEventListener('appinstalled', () => {
-      installBtn.style.display = 'none';
-    });
-    // --- PWA INSTALLATION LOGIC END ---
-
-    // --- SPEAKER LOGIC START ---
-    function speakAmount() {
-      // Amount text nikal kar '₹' aur commas hata rahe hain
-      let amountStr = document.getElementById('currTotal').innerText.replace('₹', '').replace(/,/g, '').trim();
+    function setBestVoice() {
+      let voices = window.speechSynthesis.getVoices();
       
-      if ('speechSynthesis' in window) {
-        // Speech API object banayein aur "rupaye" add karein
-        let speech = new SpeechSynthesisUtterance(amountStr + " रुपये");
-        speech.lang = 'hi-IN'; // Hindi language set kiya
-        speech.rate = 0.9; // Padhne ki speed thodi normal/clear rakhi
-        window.speechSynthesis.speak(speech);
-      } else {
-        alert("Aapka browser bolne wala feature support nahi karta hai.");
+      // Pehle Google ki natural Hindi voice dhoondho
+      bestHindiVoice = voices.find(voice => voice.lang.includes('hi') && voice.name.includes('Google')) ||
+                       voices.find(voice => voice.lang.includes('hi') && (voice.name.includes('Online') || voice.name.includes('Natural'))) ||
+                       voices.find(voice => voice.lang.includes('hi')); 
+    }
+
+    // Jab browser voices load kar le tab humari setting apply ho
+    if ('speechSynthesis' in window) {
+      setBestVoice();
+      if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = setBestVoice;
       }
     }
-    // --- SPEAKER LOGIC END ---
+
+    function speakText(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // Purani aawaz turant roko
+        
+        let speech = new SpeechSynthesisUtterance(text);
+        
+        // Agar acchi wali aawaz mil gayi toh use set karo
+        if (bestHindiVoice) {
+          speech.voice = bestHindiVoice;
+        }
+        
+        speech.lang = 'hi-IN';
+        speech.rate = 0.85; // Speed thodi natural rakhi hai
+        speech.pitch = 1;   // Normal insaan jaisi pitch
+        
+        window.speechSynthesis.speak(speech);
+      }
+    }
+
+    let typingTimer;
+    
+    function speakInput() {
+      clearTimeout(typingTimer);
+      const val = document.getElementById('amtInput').value;
+      if (val) {
+        // Aadhe second ruk kar bolega taaki pura number padh sake
+        typingTimer = setTimeout(() => {
+          speakText(val + " रुपये");
+        }, 600); 
+      }
+    }
+    // ------------------------------------------------
+
+    // --- PWA LOGIC ---
+    let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; installBtn.style.display = 'block'; });
+    installBtn.addEventListener('click', async () => { if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt = null; installBtn.style.display = 'none'; } });
 
     async function updateUI() {
       document.getElementById('currSpinner').style.display = 'block';
       document.getElementById('prevSpinner').style.display = 'block';
-
       try {
         const res = await fetch(SCRIPT_URL, { cache: "no-cache" });
         const data = await res.json();
         document.getElementById('currTotal').innerText = '₹' + data.current;
         document.getElementById('prevTotal').innerText = '₹' + data.prev;
-      } catch(e) {
-        console.log("Data load karne me problem aayi", e);
-      } finally {
+      } catch(e) { console.log(e); } finally {
         document.getElementById('currSpinner').style.display = 'none';
         document.getElementById('prevSpinner').style.display = 'none';
       }
     }
 
-    window.onload = () => {
-      updateUI();
-    };
-
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === 'visible') {
-        updateUI();
-      }
-    });
+    window.onload = () => updateUI();
 
     async function addExpense() {
       const amt = document.getElementById('amtInput').value;
       if(!amt) return;
-      
       document.getElementById('popup').style.display = 'flex';
-      document.getElementById('spinner').style.display = 'block';
-      document.getElementById('tick').style.display = 'none';
-
       try {
-        await fetch(SCRIPT_URL, { 
-          method: 'POST', 
-          mode: 'no-cors', 
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({amount: amt}) 
-        });
-
+        await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({amount: amt}) });
         await new Promise(resolve => setTimeout(resolve, 1000));
         await updateUI();
-        
         document.getElementById('spinner').style.display = 'none';
         document.getElementById('tick').style.display = 'block';
-
-        setTimeout(() => {
-          document.getElementById('popup').style.display = 'none';
-          document.getElementById('amtInput').value = '';
-        }, 1000);
-
-      } catch(e) {
-        alert("Internet connection check karein!");
-        document.getElementById('popup').style.display = 'none';
-      }
+        setTimeout(() => { document.getElementById('popup').style.display = 'none'; document.getElementById('amtInput').value = ''; document.getElementById('tick').style.display = 'none'; document.getElementById('spinner').style.display = 'block'; }, 1500);
+      } catch(e) { alert("Error!"); document.getElementById('popup').style.display = 'none'; }
     }
   </script>
 </body>
