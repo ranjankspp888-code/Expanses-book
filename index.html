@@ -22,13 +22,13 @@
       border: 4px solid #e0e0e0; 
       border-radius: 15px; 
       outline: none; 
-      min-width: 0; /* Button ko bahar jane se rokne ke liye zaroori */
+      min-width: 0; 
       background: #fafafa; 
     }
     .submit-btn { 
       width: 75px; 
       height: 75px; 
-      flex-shrink: 0; /* Button ko shrink hone se rokne ke liye */
+      flex-shrink: 0; 
       background: var(--primary); 
       color: white; 
       border: none; 
@@ -42,7 +42,7 @@
     #popup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 1000; }
     .loader-box { background: white; padding: 40px; border-radius: 30px; text-align: center; position: relative; width: 150px; height: 150px; display: flex; justify-content: center; align-items: center; }
     .spinner-circle { position: absolute; width: 120px; height: 120px; border: 8px solid #f3f3f3; border-top: 8px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
-    .tick-icon { font-size: 60px; color: var(--primary); }
+    .tick-icon { font-size: 60px; color: var(--primary); display: none; } /* Tick shuru mein hide rahega */
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
@@ -64,7 +64,12 @@
     </div>
   </div>
 
-  <div id="popup"><div class="loader-box"><div class="spinner-circle"></div><div class="tick-icon">✓</div></div></div>
+  <div id="popup">
+    <div class="loader-box">
+      <div id="spinner" class="spinner-circle"></div>
+      <div id="tick" class="tick-icon">✓</div>
+    </div>
+  </div>
 
   <script>
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
@@ -77,18 +82,49 @@
         const data = await res.json();
         document.getElementById('currTotal').innerText = '₹' + data.current;
         document.getElementById('prevTotal').innerText = '₹' + data.prev;
-      } catch(e) {}
+      } catch(e) {
+        console.log("Data load karne me problem aayi", e);
+      }
     }
 
     async function addExpense() {
       const amt = document.getElementById('amtInput').value;
       if(!amt) return;
+      
+      // Popup aur spinner show karein, tick hide rakhein
       document.getElementById('popup').style.display = 'flex';
-      await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({amount: amt}) });
-      await updateUI();
-      document.getElementById('popup').style.display = 'none';
-      document.getElementById('amtInput').value = '';
+      document.getElementById('spinner').style.display = 'block';
+      document.getElementById('tick').style.display = 'none';
+
+      try {
+        await fetch(SCRIPT_URL, { 
+          method: 'POST', 
+          mode: 'no-cors', 
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({amount: amt}) 
+        });
+
+        // Google sheet me save hone ke liye thoda wait (1 second) karein
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        await updateUI();
+        
+        // Data save hone ke baad spinner hide aur tick show karein
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('tick').style.display = 'block';
+
+        // 1 second baad popup band karein
+        setTimeout(() => {
+          document.getElementById('popup').style.display = 'none';
+          document.getElementById('amtInput').value = '';
+        }, 1000);
+
+      } catch(e) {
+        alert("Internet connection check karein!");
+        document.getElementById('popup').style.display = 'none';
+      }
     }
+    
     updateUI();
   </script>
 </body>
