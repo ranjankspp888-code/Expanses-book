@@ -12,6 +12,20 @@
     .label-text { font-size: 0.8rem; color: #7f8c8d; font-weight: bold; margin-bottom: 8px; display: block; }
     .amount { font-size: 40px; color: var(--dark); font-weight: 900; }
 
+    /* Amount & Spinner Layout */
+    .amount-row { display: flex; align-items: center; justify-content: space-between; }
+    
+    /* Chota Spinner (Right Side Ke Liye) */
+    .mini-spinner { 
+      width: 25px; 
+      height: 25px; 
+      border: 4px solid #f3f3f3; 
+      border-top: 4px solid var(--primary); 
+      border-radius: 50%; 
+      animation: spin 1s linear infinite; 
+      display: none; /* Default hide rahega */
+    }
+
     /* Mobile Perfect Layout Fix */
     .input-row { display: flex; gap: 10px; align-items: center; width: 100%; box-sizing: border-box; }
     input { 
@@ -50,11 +64,17 @@
 
   <div class="card" style="border-left: 8px solid var(--primary);">
     <span class="label-text">IS MAHINE KA KHARCH</span>
-    <div id="currTotal" class="amount">₹0</div>
+    <div class="amount-row">
+      <div id="currTotal" class="amount">₹0</div>
+      <div id="currSpinner" class="mini-spinner"></div>
+    </div>
   </div>
   <div class="card">
     <span class="label-text">PICHHLA MAHINA</span>
-    <div id="prevTotal" class="amount" style="font-size: 25px; color: #7f8c8d;">₹0</div>
+    <div class="amount-row">
+      <div id="prevTotal" class="amount" style="font-size: 25px; color: #7f8c8d;">₹0</div>
+      <div id="prevSpinner" class="mini-spinner"></div>
+    </div>
   </div>
   <div class="card">
     <span class="label-text">AMOUNT DALEIN</span>
@@ -77,14 +97,21 @@
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwLFBvnydll-7DjNcTfoUzblswnm_lP68Dt9ewE9lP9LJ65JMn9h2XhkL3CWw9-SITc/exec"; 
 
     async function updateUI() {
+      // Data fetch hone se pehle chhote spinners dikhayein
+      document.getElementById('currSpinner').style.display = 'block';
+      document.getElementById('prevSpinner').style.display = 'block';
+
       try {
-        // Cache-control header add kiya gaya hai taaki naya data aaye
         const res = await fetch(SCRIPT_URL, { cache: "no-cache" });
         const data = await res.json();
         document.getElementById('currTotal').innerText = '₹' + data.current;
         document.getElementById('prevTotal').innerText = '₹' + data.prev;
       } catch(e) {
         console.log("Data load karne me problem aayi", e);
+      } finally {
+        // Data load hone ke baad (ya error aane par) spinners wapas chhupa dein
+        document.getElementById('currSpinner').style.display = 'none';
+        document.getElementById('prevSpinner').style.display = 'none';
       }
     }
 
