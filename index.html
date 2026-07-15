@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="manifest" href="manifest.json">
+  <style>
+    /* ... (Aapki purani CSS wahi rahegi) ... */
+    :root { --primary: #27ae60; --dark: #2c3e50; --light: #f4f4f9; }
+    body { font-family: sans-serif; background: var(--light); padding: 15px; margin: 0; box-sizing: border-box; }
+    .card { background: white; padding: 20px; border-radius: 20px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+    .label-text { font-size: 0.8rem; color: #7f8c8d; font-weight: bold; margin-bottom: 8px; display: block; }
+    .amount { font-size: 40px; color: var(--dark); font-weight: 900; }
+    .input-row { display: flex; gap: 10px; align-items: center; width: 100%; }
+    input { flex: 1; padding: 20px 15px; font-size: 28px; font-weight: 900; border: 4px solid #e0e0e0; border-radius: 15px; outline: none; background: #fafafa; }
+    .submit-btn { width: 75px; height: 75px; background: var(--primary); color: white; border: none; border-radius: 50%; font-size: 35px; cursor: pointer; }
+    #popup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 1000; }
+    .loader-box { background: white; padding: 40px; border-radius: 30px; text-align: center; position: relative; width: 150px; height: 150px; display: flex; justify-content: center; align-items: center; }
+    .spinner-circle { position: absolute; width: 120px; height: 120px; border: 8px solid #f3f3f3; border-top: 8px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+    .tick-icon { font-size: 60px; color: var(--primary); }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <!-- ... (Aapka HTML Body wahi rahega) ... -->
+  <div class="card" style="border-left: 8px solid var(--primary);">
+    <span class="label-text">IS MAHINE KA KHARCH</span>
+    <div id="currTotal" class="amount">₹0</div>
+  </div>
+  <div class="card">
+    <span class="label-text">PICHHLA MAHINA</span>
+    <div id="prevTotal" class="amount" style="font-size: 25px; color: #7f8c8d;">₹0</div>
+  </div>
+  <div class="card">
+    <span class="label-text">AMOUNT DALEIN</span>
+    <div class="input-row">
+      <input type="number" id="amtInput" placeholder="0" pattern="\d*">
+      <button class="submit-btn" onclick="addExpense()">✓</button>
+    </div>
+  </div>
+  <div id="popup"><div class="loader-box"><div class="spinner-circle"></div><div class="tick-icon">✓</div></div></div>
+
+  <script>
+    // Service Worker Register
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js');
+    }
+
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwLFBvnydll-7DjNcTfoUzblswnm_lP68Dt9ewE9lP9LJ65JMn9h2XhkL3CWw9-SITc/exec"; 
+
+    async function updateUI() {
+      const res = await fetch(SCRIPT_URL);
+      const data = await res.json();
+      document.getElementById('currTotal').innerText = '₹' + data.current;
+      document.getElementById('prevTotal').innerText = '₹' + data.prev;
+    }
+
+    async function addExpense() {
+      const amt = document.getElementById('amtInput').value;
+      if(!amt) return;
+      document.getElementById('popup').style.display = 'flex';
+      await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({amount: amt}) });
+      await updateUI();
+      document.getElementById('popup').style.display = 'none';
+      document.getElementById('amtInput').value = '';
+    }
+    updateUI();
+  </script>
+</body>
+</html>
