@@ -8,6 +8,22 @@
     :root { --primary: #27ae60; --dark: #2c3e50; --light: #f4f4f9; }
     body { font-family: sans-serif; background: var(--light); padding: 15px; margin: 0; box-sizing: border-box; }
     
+    /* Install Button UI */
+    .install-btn {
+      background: var(--dark);
+      color: white;
+      border: none;
+      padding: 15px;
+      width: 100%;
+      border-radius: 15px;
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      cursor: pointer;
+      display: none; /* Jab tak browser allow na kare, hide rahega */
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
     .card { background: white; padding: 20px; border-radius: 20px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
     .label-text { font-size: 0.8rem; color: #7f8c8d; font-weight: bold; margin-bottom: 8px; display: block; }
     .amount { font-size: 40px; color: var(--dark); font-weight: 900; }
@@ -62,6 +78,9 @@
 </head>
 <body>
 
+  <!-- Install Button Yahan Add Kiya Gaya Hai -->
+  <button id="installBtn" class="install-btn">📲 App Install Karein</button>
+
   <div class="card" style="border-left: 8px solid var(--primary);">
     <span class="label-text">IS MAHINE KA KHARCH</span>
     <div class="amount-row">
@@ -96,8 +115,38 @@
 
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwLFBvnydll-7DjNcTfoUzblswnm_lP68Dt9ewE9lP9LJ65JMn9h2XhkL3CWw9-SITc/exec"; 
 
+    // --- PWA INSTALLATION LOGIC START ---
+    let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Chrome ka default prompt rokein
+      e.preventDefault();
+      // Event save karein
+      deferredPrompt = e;
+      // Button user ko dikhayein
+      installBtn.style.display = 'block';
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          console.log('App install ho gayi');
+          installBtn.style.display = 'none'; // Install hone ke baad button chupa dein
+        }
+        deferredPrompt = null;
+      }
+    });
+
+    // Agar user ne already pehle se install kar rakha hai
+    window.addEventListener('appinstalled', () => {
+      installBtn.style.display = 'none';
+    });
+    // --- PWA INSTALLATION LOGIC END ---
+
     async function updateUI() {
-      // Data fetch hone se pehle chhote spinners dikhayein
       document.getElementById('currSpinner').style.display = 'block';
       document.getElementById('prevSpinner').style.display = 'block';
 
@@ -109,18 +158,15 @@
       } catch(e) {
         console.log("Data load karne me problem aayi", e);
       } finally {
-        // Data load hone ke baad (ya error aane par) spinners wapas chhupa dein
         document.getElementById('currSpinner').style.display = 'none';
         document.getElementById('prevSpinner').style.display = 'none';
       }
     }
 
-    // Website open hote hi refresh karega
     window.onload = () => {
       updateUI();
     };
 
-    // Agar app minimize karke wapas open karein, tab bhi refresh karega
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === 'visible') {
         updateUI();
@@ -131,7 +177,6 @@
       const amt = document.getElementById('amtInput').value;
       if(!amt) return;
       
-      // Popup aur spinner show karein, tick hide rakhein
       document.getElementById('popup').style.display = 'flex';
       document.getElementById('spinner').style.display = 'block';
       document.getElementById('tick').style.display = 'none';
@@ -144,16 +189,12 @@
           body: JSON.stringify({amount: amt}) 
         });
 
-        // Google sheet me save hone ke liye thoda wait (1 second) karein
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
         await updateUI();
         
-        // Data save hone ke baad spinner hide aur tick show karein
         document.getElementById('spinner').style.display = 'none';
         document.getElementById('tick').style.display = 'block';
 
-        // 1 second baad popup band karein
         setTimeout(() => {
           document.getElementById('popup').style.display = 'none';
           document.getElementById('amtInput').value = '';
